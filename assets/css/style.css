@@ -1,0 +1,417 @@
+/* --- CORE CANDENT VARIABLES --- */
+:root {
+    --ios-bg: #F2F2F7;
+    --ios-surface: #FFFFFF;
+    --ios-surface-2: #F2F2F7;
+    --ios-separator: rgba(60,60,67,0.12);
+    --ios-label: #000000;
+    --ios-label-2: rgba(60,60,67,0.6);
+    --ios-label-3: rgba(60,60,67,0.3);
+    --ios-label-4: rgba(60,60,67,0.18);
+    --ios-red: #FF3B30;
+    --ios-green: #34C759;
+    --ios-blue: #007AFF;
+    --ios-orange: #FF9500;
+    --accent: #30C88A;
+    --accent-dark: #25A872;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 26px;
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04);
+    --shadow-elevated: 0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* --- GLOBAL BODY STYLES --- */
+body {
+    background-color: var(--ios-bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    color: var(--ios-label);
+    overflow-x: hidden; /* Prevents horizontal scrolling */
+    -webkit-font-smoothing: antialiased;
+}
+
+/* =========================================
+   CORE UI CLASSES (CANDENT THEME)
+   ========================================= */
+
+/* --- Layout & Cards --- */
+.dash-card {
+    background: var(--ios-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+}
+.dash-card-header {
+    padding: 16px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--ios-separator);
+}
+.card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ios-label);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    letter-spacing: -0.1px;
+}
+.card-title-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+}
+
+/* --- Typography & Headings --- */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 24px 0 16px;
+    border-bottom: 1px solid var(--ios-separator);
+    margin-bottom: 24px;
+}
+.page-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    color: var(--ios-label);
+    margin: 0;
+}
+.page-subtitle {
+    font-size: 0.85rem;
+    color: var(--ios-label-2);
+    margin-top: 4px;
+}
+
+/* --- Buttons --- */
+.quick-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 18px;
+    border-radius: 50px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.18s ease;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: -0.1px;
+}
+.quick-btn:active { transform: scale(0.97); }
+.quick-btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(48,200,138,0.35); }
+.quick-btn-primary:hover { background: var(--accent-dark); color: #fff; }
+.quick-btn-secondary { background: var(--ios-surface); color: var(--ios-label); border: 1px solid var(--ios-separator); }
+.quick-btn-secondary:hover { background: var(--ios-surface-2); color: var(--ios-label); }
+.quick-btn-ghost { background: rgba(48,200,138,0.12); color: var(--accent-dark); }
+.quick-btn-ghost:hover { background: rgba(48,200,138,0.2); color: var(--accent-dark); }
+
+/* --- Forms, Inputs & Labels --- */
+.ios-label-sm {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ios-label-2);
+    margin-bottom: 6px;
+    padding-left: 4px;
+}
+.ios-input, .form-select, .form-control {
+    background: #FFFFFF !important;
+    border: 1px solid #C7C7CC !important; /* Visible, clean iOS border */
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    color: var(--ios-label);
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03) inset; /* Soft inset shadow */
+    width: 100%;
+    min-height: 42px;
+}
+.ios-input:focus, .form-select:focus, .form-control:focus {
+    background: #FFFFFF !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(48,200,138,0.2) !important;
+    outline: none;
+}
+.ios-input[readonly], .form-control[readonly], .form-control:disabled, .form-select:disabled {
+    background: var(--ios-bg) !important;
+    opacity: 0.8;
+    color: var(--ios-label-2);
+    font-weight: 600;
+}
+.ios-search-wrapper { position: relative; width: 100%; }
+.ios-search-wrapper .bi-search {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ios-label-3);
+}
+.ios-search-wrapper .ios-input { padding-left: 38px; }
+
+/* Custom iOS Switch */
+.form-switch .form-check-input {
+    height: 1.3rem;
+    width: 2.3rem;
+    cursor: pointer;
+}
+.form-switch .form-check-input:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* --- Tables & Lists --- */
+.table-ios-header th {
+    background: var(--ios-surface-2) !important;
+    color: var(--ios-label-2) !important;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    border-bottom: 1px solid var(--ios-separator);
+    padding: 14px 20px;
+}
+.ios-table { width: 100%; border-collapse: collapse; }
+.ios-table td {
+    vertical-align: middle;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--ios-separator);
+}
+.ios-table tr:last-child td { border-bottom: none; }
+.ios-table tr:hover td { background: var(--ios-bg); }
+
+/* --- Badges & Alerts --- */
+.ios-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+.ios-badge.green   { background: rgba(52,199,89,0.12); color: #1A9A3A; }
+.ios-badge.blue    { background: rgba(0,122,255,0.12); color: #0055CC; }
+.ios-badge.orange  { background: rgba(255,149,0,0.15); color: #C07000; }
+.ios-badge.red     { background: rgba(255,59,48,0.12); color: #CC2200; }
+.ios-badge.purple  { background: rgba(88,86,214,0.12); color: #5856D6; }
+.ios-badge.gray    { background: rgba(60,60,67,0.1); color: var(--ios-label-2); }
+.ios-badge.outline { background: transparent; border: 1px solid var(--ios-separator); color: var(--ios-label-2); }
+
+.ios-alert {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+}
+
+/* --- Modals --- */
+.modal-content { 
+    border-radius: 20px; 
+    border: none; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2); 
+    overflow: hidden; 
+}
+.modal-header { 
+    background: var(--ios-surface); 
+    border-bottom: 1px solid var(--ios-separator); 
+    padding: 18px 24px; 
+}
+.modal-footer { 
+    border-top: 1px solid var(--ios-separator); 
+    padding: 16px 24px; 
+    background: var(--ios-surface); 
+}
+
+/* --- Pagination --- */
+.ios-pagination { 
+    display: flex; 
+    gap: 4px; 
+    list-style: none; 
+    padding: 0; 
+    justify-content: center; 
+    margin-top: 20px; 
+}
+.ios-pagination .page-link {
+    border: none;
+    color: var(--ios-label);
+    background: var(--ios-surface);
+    border-radius: 8px;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 0.9rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.ios-pagination .page-item.active .page-link {
+    background: var(--accent); color: #fff; box-shadow: 0 4px 10px rgba(48,200,138,0.3);
+}
+.ios-pagination .page-link:hover:not(.active) { background: var(--ios-surface-2); }
+
+/* --- Metrics & Progress --- */
+.metrics-card {
+    border-radius: 16px;
+    padding: 20px 24px;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 100%;
+}
+.metrics-icon {
+    width: 54px; height: 54px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem;
+    flex-shrink: 0;
+}
+.ios-progress-track {
+    height: 10px;
+    border-radius: 50px;
+    background: rgba(0,0,0,0.06);
+    overflow: hidden;
+    margin: 6px 0;
+    width: 100%;
+}
+.ios-progress-fill {
+    height: 100%;
+    border-radius: 50px;
+    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- Empty States --- */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--ios-label-3); }
+.empty-state i { font-size: 2.8rem; display: block; margin-bottom: 10px; opacity: 0.5; }
+.empty-state p { font-size: 0.85rem; margin: 0; color: var(--ios-label-2); font-weight: 500;}
+
+
+/* =========================================
+   FIXED & MINIMIZABLE SIDEBAR UPGRADE
+   ========================================= */
+@media (min-width: 768px) {
+    #sidebarMenu {
+        position: fixed;
+        top: 56px; /* Offset for the top navbar */
+        left: 0;
+        bottom: 0;
+        z-index: 100;
+        padding-top: 15px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        width: 260px; /* Fixed expanded width */
+        border-right: 1px solid var(--ios-separator);
+        background-color: var(--ios-surface);
+        transition: width 0.3s ease;
+    }
+    
+    /* Push main content to the right */
+    #mainContent {
+        margin-left: 260px;
+        width: auto; /* Removes exact percentage calculations */
+        flex-grow: 1; /* Naturally fills available remaining space */
+        transition: margin-left 0.3s ease;
+        min-height: calc(100vh - 56px);
+    }
+    
+    /* Minimized State overrides */
+    body.sidebar-minimized #sidebarMenu {
+        width: 70px;
+    }
+    body.sidebar-minimized #mainContent {
+        margin-left: 70px;
+    }
+    
+    body.sidebar-minimized .sidebar-text,
+    body.sidebar-minimized .bi-chevron-down,
+    body.sidebar-minimized .sidebar-heading,
+    body.sidebar-minimized .sb-label,
+    body.sidebar-minimized .sb-group-label,
+    body.sidebar-minimized .sb-chevron,
+    body.sidebar-minimized .sb-brand-name,
+    body.sidebar-minimized .sb-brand-sub {
+        display: none !important;
+    }
+    
+    body.sidebar-minimized .nav-link,
+    body.sidebar-minimized .sb-link {
+        justify-content: center !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 12px;
+        padding-bottom: 12px;
+    }
+    
+    body.sidebar-minimized .nav-link i.fs-5,
+    body.sidebar-minimized .sb-icon {
+        margin-right: 0 !important;
+        font-size: 1.5rem !important;
+    }
+    
+    /* Hide submenus completely when sidebar is minimized */
+    body.sidebar-minimized .collapse.show,
+    body.sidebar-minimized .sb-sub {
+        display: none !important;
+    }
+}
+
+/* Custom scrollbar for the Sidebar */
+#sidebarMenu::-webkit-scrollbar {
+    width: 5px;
+}
+#sidebarMenu::-webkit-scrollbar-track {
+    background: transparent;
+}
+#sidebarMenu::-webkit-scrollbar-thumb {
+    background: rgba(60,60,67,0.15);
+    border-radius: 10px;
+}
+#sidebarMenu::-webkit-scrollbar-thumb:hover {
+    background: rgba(60,60,67,0.25);
+}
+
+.sidebar-text {
+    white-space: nowrap;
+    transition: opacity 0.2s;
+}
+
+.sidebar .nav-link {
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius-sm);
+    margin: 0.2rem 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--ios-surface-2);
+    color: var(--accent) !important;
+}
+
+/* Make table text slightly smaller for better fit on mobile */
+.table {
+    font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    main {
+        padding-top: 1rem !important;
+    }
+}
