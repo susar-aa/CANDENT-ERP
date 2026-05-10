@@ -62,6 +62,14 @@ try {
         actual_cash DECIMAL(12,2) NULL,
         expected_bank DECIMAL(12,2) NULL,
         actual_bank DECIMAL(12,2) NULL,
+        cash_5000 INT DEFAULT 0,
+        cash_2000 INT DEFAULT 0,
+        cash_1000 INT DEFAULT 0,
+        cash_500 INT DEFAULT 0,
+        cash_100 INT DEFAULT 0,
+        cash_50 INT DEFAULT 0,
+        cash_20 INT DEFAULT 0,
+        cash_coins DECIMAL(12,2) DEFAULT 0.00,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (rep_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (route_id) REFERENCES routes(id) ON DELETE CASCADE,
@@ -117,7 +125,14 @@ try {
 } catch(PDOException $e) { /* Ignored if already exists */ }
 
 try {
-    $pdo->exec("ALTER TABLE rep_routes DROP INDEX rep_date");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_5000 INT DEFAULT 0");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_2000 INT DEFAULT 0");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_1000 INT DEFAULT 0");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_500 INT DEFAULT 0");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_100 INT DEFAULT 0");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_50 INT DEFAULT 0");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_20 INT DEFAULT 0");
+    $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_coins DECIMAL(12,2) DEFAULT 0.00");
 } catch(PDOException $e) {}
 // ------------------------------------
 
@@ -213,8 +228,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['route_action'])) {
         $expected_cash = (float)($_POST['expected_cash_val'] ?? 0);
         $lat = !empty($_POST['latitude']) ? (float)$_POST['latitude'] : null;
         $lng = !empty($_POST['longitude']) ? (float)$_POST['longitude'] : null;
+
+        $c5000 = (int)($_POST['cash_5000'] ?? 0);
+        $c2000 = (int)($_POST['cash_2000'] ?? 0);
+        $c1000 = (int)($_POST['cash_1000'] ?? 0);
+        $c500 = (int)($_POST['cash_500'] ?? 0);
+        $c100 = (int)($_POST['cash_100'] ?? 0);
+        $c50 = (int)($_POST['cash_50'] ?? 0);
+        $c20 = (int)($_POST['cash_20'] ?? 0);
+        $ccoins = (float)($_POST['cash_coins'] ?? 0);
         
-        $pdo->prepare("UPDATE rep_routes SET end_meter = ?, actual_cash = ?, expected_cash = ?, status = 'completed' WHERE id = ? AND rep_id = ?")->execute([$end_meter, $actual_cash, $expected_cash, $assignment_id, $rep_id]);
+        $pdo->prepare("UPDATE rep_routes SET end_meter = ?, actual_cash = ?, expected_cash = ?, 
+                       cash_5000 = ?, cash_2000 = ?, cash_1000 = ?, cash_500 = ?, cash_100 = ?, cash_50 = ?, cash_20 = ?, cash_coins = ?,
+                       status = 'completed' WHERE id = ? AND rep_id = ?")
+            ->execute([$end_meter, $actual_cash, $expected_cash, $c5000, $c2000, $c1000, $c500, $c100, $c50, $c20, $ccoins, $assignment_id, $rep_id]);
         $pdo->prepare("UPDATE rep_daily_sessions SET end_time = NOW(), status = 'ended' WHERE user_id = ? AND session_date = CURDATE()")->execute([$rep_id]);
         
         if ($lat && $lng) {
@@ -966,13 +993,13 @@ try {
                             <div class="denom-row">
                                 <span class="denom-label"><?php echo $label; ?></span>
                                 <span class="text-muted small">x</span>
-                                <input type="number" id="denom_<?php echo $val; ?>" class="denom-input cash-calc" min="0" inputmode="numeric" placeholder="0">
+                                <input type="number" id="denom_<?php echo $val; ?>" name="cash_<?php echo $val; ?>" class="denom-input cash-calc" min="0" inputmode="numeric" placeholder="0">
                             </div>
                             <?php endforeach; ?>
                             <div class="denom-row">
                                 <span class="denom-label text-muted">Coins</span>
                                 <span class="text-muted small">+</span>
-                                <input type="number" step="0.01" id="denom_coins" class="denom-input cash-calc" min="0" inputmode="decimal" placeholder="0.00">
+                                <input type="number" step="0.01" id="denom_coins" name="cash_coins" class="denom-input cash-calc" min="0" inputmode="decimal" placeholder="0.00">
                             </div>
                             
                             <div class="info-row mt-3 border-top pt-2" style="font-family: 'Inter', sans-serif;">

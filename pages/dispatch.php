@@ -15,7 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_action'])) {
     
     if ($_POST['ajax_action'] == 'get_unload_data') {
         try {
-            $asgStmt = $pdo->prepare("SELECT rep_id, assign_date, actual_cash as rep_declared_cash FROM rep_routes WHERE id = ?");
+            $asgStmt = $pdo->prepare("SELECT rep_id, assign_date, actual_cash as rep_declared_cash, 
+                                            cash_5000, cash_2000, cash_1000, cash_500, cash_100, cash_50, cash_20, cash_coins 
+                                     FROM rep_routes WHERE id = ?");
             $asgStmt->execute([$assignment_id]);
             $asg = $asgStmt->fetch();
 
@@ -90,6 +92,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_action'])) {
                 'expected_cash' => $expected_cash,
                 'expected_bank' => $expected_bank,
                 'rep_declared_cash' => $asg['rep_declared_cash'],
+                'rep_cash_counts' => [
+                    '5000' => $asg['cash_5000'],
+                    '2000' => $asg['cash_2000'],
+                    '1000' => $asg['cash_1000'],
+                    '500' => $asg['cash_500'],
+                    '100' => $asg['cash_100'],
+                    '50' => $asg['cash_50'],
+                    '20' => $asg['cash_20'],
+                    'coins' => $asg['cash_coins']
+                ],
                 'cheques' => $cheques,
                 'customer_returns' => $customer_returns
             ]);
@@ -799,35 +811,43 @@ include '../includes/sidebar.php';
                                 
                                 <div class="row g-2 mb-1 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">5000 x</div>
-                                    <div class="col-6"><input type="number" id="denom_5000" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" id="denom_5000" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_5000" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0</span></div>
                                 </div>
                                 <div class="row g-2 mb-1 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">2000 x</div>
-                                    <div class="col-6"><input type="number" id="denom_2000" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" id="denom_2000" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_2000" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0</span></div>
                                 </div>
                                 <div class="row g-2 mb-1 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">1000 x</div>
-                                    <div class="col-6"><input type="number" id="denom_1000" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" id="denom_1000" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_1000" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0</span></div>
                                 </div>
                                 <div class="row g-2 mb-1 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">500 x</div>
-                                    <div class="col-6"><input type="number" id="denom_500" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" id="denom_500" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_500" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0</span></div>
                                 </div>
                                 <div class="row g-2 mb-1 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">100 x</div>
-                                    <div class="col-6"><input type="number" id="denom_100" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" id="denom_100" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_100" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0</span></div>
                                 </div>
                                 <div class="row g-2 mb-1 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">50 x</div>
-                                    <div class="col-6"><input type="number" id="denom_50" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" id="denom_50" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_50" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0</span></div>
                                 </div>
                                 <div class="row g-2 mb-1 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">20 x</div>
-                                    <div class="col-6"><input type="number" id="denom_20" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" id="denom_20" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_20" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0</span></div>
                                 </div>
                                 <div class="row g-2 mb-3 align-items-center">
                                     <div class="col-4 text-end" style="font-size: 0.8rem; font-weight: 600; color: var(--ios-label-2);">Coins +</div>
-                                    <div class="col-6"><input type="number" step="0.01" id="denom_coins" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-5"><input type="number" step="0.01" id="denom_coins" class="ios-input text-center cash-calc" style="min-height: 32px; padding: 4px;" min="0" oninput="calculateCash()"></div>
+                                    <div class="col-3"><span id="rep_count_coins" class="badge bg-light text-dark border w-100" style="font-size: 0.75rem; padding: 6px;">0.00</span></div>
                                 </div>
                                 
                                 <div style="background: var(--ios-bg); padding: 12px; border-radius: 10px; border: 1px solid var(--ios-separator);">
@@ -1188,9 +1208,19 @@ function openUnloadModal(assignmentId) {
             document.getElementById('display_expected_cash').innerText = parseFloat(result.expected_cash).toFixed(2);
             document.getElementById('expected_cash_val').value = parseFloat(result.expected_cash).toFixed(2);
             
-            document.getElementById('display_expected_bank').innerText = parseFloat(result.expected_bank).toFixed(2);
             document.getElementById('expected_bank_val').value = parseFloat(result.expected_bank).toFixed(2);
             
+            // Populate Rep's Cash Counts
+            if (result.rep_cash_counts) {
+                const rcc = result.rep_cash_counts;
+                [5000, 2000, 1000, 500, 100, 50, 20].forEach(d => {
+                    const el = document.getElementById('rep_count_' + d);
+                    if (el) el.innerText = rcc[d] || '0';
+                });
+                const coinsEl = document.getElementById('rep_count_coins');
+                if (coinsEl) coinsEl.innerText = parseFloat(rcc.coins || 0).toFixed(2);
+            }
+
             calculateCash();
 
             // 5. Cheques Data
