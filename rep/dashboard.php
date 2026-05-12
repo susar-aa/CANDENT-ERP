@@ -134,6 +134,8 @@ try {
     $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_20 INT DEFAULT 0");
     $pdo->exec("ALTER TABLE rep_routes ADD COLUMN IF NOT EXISTS cash_coins DECIMAL(12,2) DEFAULT 0.00");
 } catch(PDOException $e) {}
+
+try { $pdo->exec("ALTER TABLE customer_payments ADD COLUMN assignment_id INT NULL AFTER customer_id"); } catch(PDOException $e) {}
 // ------------------------------------
 
 // --- Handle Post Actions for Routes & Starting/Ending Day ---
@@ -247,6 +249,57 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['route_action'])) {
         if ($lat && $lng) {
             $pdo->prepare("INSERT INTO rep_location_logs (user_id, latitude, longitude, activity_type, timestamp) VALUES (?, ?, ?, 'day_ended', NOW())")->execute([$rep_id, $lat, $lng]);
         }
+    } elseif ($action == 'record_credit_payment') {
+        $customer_id = (int)$_POST['customer_id'];
+        $pay_amount = (float)$_POST['payment_amount'];
+        $payment_method = $_POST['payment_method'];
+        $reference = trim($_POST['payment_reference'] ?? "");
+
+        if ($pay_amount > 0) {
+            try {
+                $pdo->beginTransaction();
+
+                $stmt = $pdo->prepare("SELECT id, total_amount, paid_amount FROM orders WHERE customer_id = ? AND total_amount > paid_amount ORDER BY created_at ASC FOR UPDATE");
+                $stmt->execute([$customer_id]);
+                $unpaid_orders = $stmt->fetchAll();
+
+                $remaining_payment = $pay_amount;
+                $first_order_id = null;
+
+                foreach ($unpaid_orders as $order) {
+                    if ($remaining_payment <= 0) break;
+                    if (!$first_order_id) $first_order_id = $order['id'];
+
+                    $amount_due = $order['total_amount'] - $order['paid_amount'];
+                    $amount_to_apply = min($amount_due, $remaining_payment);
+                    $new_paid_amount = $order['paid_amount'] + $amount_to_apply;
+                    
+                    $new_status = ($payment_method === 'Cheque') ? 'waiting' : (($new_paid_amount >= $order['total_amount']) ? 'paid' : 'pending');
+
+                    $pdo->prepare("UPDATE orders SET paid_amount = ?, payment_status = ? WHERE id = ?")
+                        ->execute([$new_paid_amount, $new_status, $order['id']]);
+
+                    $remaining_payment -= $amount_to_apply;
+                }
+
+                if ($payment_method === 'Cheque' && $first_order_id) {
+                    $bank_name = trim($_POST['cheque_bank']);
+                    $cheque_number = trim($_POST['cheque_number']);
+                    $banking_date = $_POST['cheque_date'];
+                    if(empty($reference)) $reference = "$bank_name - $cheque_number";
+                    
+                    $pdo->prepare("INSERT INTO cheques (order_id, bank_name, cheque_number, banking_date, amount, status) VALUES (?, ?, ?, ?, ?, 'pending') ON DUPLICATE KEY UPDATE bank_name=VALUES(bank_name), cheque_number=VALUES(cheque_number), banking_date=VALUES(banking_date), amount=amount+VALUES(amount)")
+                        ->execute([$first_order_id, $bank_name, $cheque_number, $banking_date, $pay_amount]);
+                }
+                
+                $pdo->prepare("INSERT INTO customer_payments (customer_id, assignment_id, amount, method, reference, notes) VALUES (?, ?, ?, ?, ?, ?)")
+                    ->execute([$customer_id, $assignment_id, $pay_amount, $payment_method, $reference, "Rep Collected Payment"]);
+
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+            }
+        }
     }
     header("Location: dashboard.php");
     exit;
@@ -257,6 +310,8 @@ $route_expenses = [];
 $total_expenses = 0;
 $cash_sales = 0;
 $collected_cheques = [];
+$credit_cash_collected = 0;
+$customers_with_dues = [];
 
 try {
     $routeStmt = $pdo->prepare("
@@ -286,6 +341,10 @@ try {
         $stmt->execute([$assignment_id]);
         $cash_sales = (float)$stmt->fetchColumn() ?: 0;
 
+        $stmt = $pdo->prepare("SELECT SUM(amount) FROM customer_payments WHERE assignment_id = ? AND method = 'Cash'");
+        $stmt->execute([$assignment_id]);
+        $credit_cash_collected = (float)$stmt->fetchColumn() ?: 0;
+
         $stmt = $pdo->prepare("SELECT * FROM `route_expenses` WHERE `route_expenses`.`assignment_id` = ? ORDER BY `route_expenses`.`created_at` DESC");
         $stmt->execute([$assignment_id]);
         $route_expenses = $stmt->fetchAll();
@@ -298,6 +357,18 @@ try {
         ");
         $stmt->execute([$assignment_id]);
         $collected_cheques = $stmt->fetchAll();
+
+        // Fetch customers with dues for the modal
+        $stmt = $pdo->prepare("
+            SELECT c.id, c.name, SUM(o.total_amount - o.paid_amount) as outstanding 
+            FROM customers c 
+            JOIN orders o ON c.id = o.customer_id 
+            WHERE o.total_amount > o.paid_amount
+            GROUP BY c.id 
+            ORDER BY c.name ASC
+        ");
+        $stmt->execute();
+        $customers_with_dues = $stmt->fetchAll();
     } else {
         $stmt = $pdo->prepare("SELECT SUM(`total_amount`) FROM `orders` WHERE `rep_id` = ? AND DATE(`created_at`) = CURDATE()");
         $stmt->execute([$rep_id]);
@@ -821,6 +892,18 @@ try {
                 <span class="ag-text">Product<br>Quotation</span>
             </a>
 
+            <?php if($assignment_id && $todays_route['status'] == 'accepted' && !is_null($todays_route['start_meter'])): ?>
+                <a href="#" class="app-grid-btn" data-bs-toggle="modal" data-bs-target="#creditCollectionModal">
+                    <div class="ag-icon-wrapper" style="background: #FEF3C7; color: #D97706;"><i class="bi bi-cash-coin"></i></div>
+                    <span class="ag-text">Credit<br>Collection</span>
+                </a>
+            <?php else: ?>
+                <div class="app-grid-btn" style="opacity: 0.5;" onclick="alert('Start your route first to collect payments.')">
+                    <div class="ag-icon-wrapper ag-gray"><i class="bi bi-cash-coin"></i></div>
+                    <span class="ag-text">Credit<br>Collection</span>
+                </div>
+            <?php endif; ?>
+
         </div>
 
         <h2 class="section-title">Other Tools</h2>
@@ -948,6 +1031,61 @@ try {
 
 
     <!-- ═══════════════════════════════════════
+         CREDIT COLLECTION MODAL
+    ═══════════════════════════════════════ -->
+    <?php if ($assignment_id): ?>
+    <div class="modal fade" id="creditCollectionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-bottom">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Record Credit Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST">
+                        <input type="hidden" name="route_action" value="record_credit_payment">
+                        <input type="hidden" name="assignment_id" value="<?php echo $assignment_id; ?>">
+                        
+                        <label class="text-muted fw-bold small text-uppercase mb-2 d-block">Customer (With Outstanding)</label>
+                        <select name="customer_id" class="clean-input mb-3" required>
+                            <option value="">Select Customer...</option>
+                            <?php foreach($customers_with_dues as $c): ?>
+                                <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['name']); ?> (Due: Rs <?php echo number_format($c['outstanding'], 2); ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                        
+                        <label class="text-muted fw-bold small text-uppercase mb-2 d-block">Amount (Rs)</label>
+                        <input type="number" step="0.01" name="payment_amount" class="clean-input mono mb-3" required placeholder="0.00">
+                        
+                        <label class="text-muted fw-bold small text-uppercase mb-2 d-block">Payment Method</label>
+                        <select name="payment_method" class="clean-input mb-3" required onchange="toggleChequeFields(this.value)">
+                            <option value="Cash">Cash</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+
+                        <div id="chequeFields" style="display: none;">
+                            <label class="text-muted fw-bold small text-uppercase mb-2 d-block">Bank Name</label>
+                            <input type="text" name="cheque_bank" class="clean-input mb-3" placeholder="e.g. BOC">
+                            
+                            <label class="text-muted fw-bold small text-uppercase mb-2 d-block">Cheque Number</label>
+                            <input type="text" name="cheque_number" class="clean-input mb-3" placeholder="123456">
+                            
+                            <label class="text-muted fw-bold small text-uppercase mb-2 d-block">Banking Date</label>
+                            <input type="date" name="cheque_date" class="clean-input mb-3">
+                        </div>
+                        
+                        <label class="text-muted fw-bold small text-uppercase mb-2 d-block">Reference Note (Optional)</label>
+                        <input type="text" name="payment_reference" class="clean-input mb-4" placeholder="Note or receipt number">
+                        
+                        <button type="submit" class="btn-action btn-success-action" style="background: var(--success); color: white;">Record Payment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- ═══════════════════════════════════════
          END DAY MODAL
     ═══════════════════════════════════════ -->
     <?php if ($todays_route && $todays_route['status'] == 'accepted' && !is_null($todays_route['start_meter'])): ?>
@@ -964,8 +1102,12 @@ try {
                     <div class="info-box mb-4">
                         <h6 class="fw-bold mb-3" style="font-family: 'Inter', sans-serif;">Expected Handover</h6>
                         <div class="info-row" style="font-family: 'Inter', sans-serif;">
-                            <span class="info-label">Cash Collected</span>
+                            <span class="info-label">Direct Cash Sales</span>
                             <span class="info-value text-success money">Rs <?php echo number_format($cash_sales, 2); ?></span>
+                        </div>
+                        <div class="info-row" style="font-family: 'Inter', sans-serif;">
+                            <span class="info-label">Credit Collected (Cash)</span>
+                            <span class="info-value text-success money">Rs <?php echo number_format($credit_cash_collected, 2); ?></span>
                         </div>
                         <div class="info-row" style="font-family: 'Inter', sans-serif;">
                             <span class="info-label">Expenses</span>
@@ -973,8 +1115,8 @@ try {
                         </div>
                         <div class="info-row" style="border-top: 1px dashed var(--border); margin-top: 4px; font-family: 'Inter', sans-serif;">
                             <span class="info-label fw-bold text-dark">Net Cash</span>
-                            <span class="info-value fw-bold text-primary fs-5 money">Rs <?php echo number_format(max(0, $cash_sales - $total_expenses), 2); ?></span>
-                            <input type="hidden" id="expected_cash_val" value="<?php echo max(0, $cash_sales - $total_expenses); ?>">
+                            <span class="info-value fw-bold text-primary fs-5 money">Rs <?php echo number_format(max(0, $cash_sales + $credit_cash_collected - $total_expenses), 2); ?></span>
+                            <input type="hidden" id="expected_cash_val" value="<?php echo max(0, $cash_sales + $credit_cash_collected - $total_expenses); ?>">
                         </div>
                     </div>
 
@@ -1013,7 +1155,7 @@ try {
                             </div>
                         </div>
                         
-                        <input type="hidden" name="expected_cash_val" id="expected_cash_val_form" value="<?php echo max(0, $cash_sales - $total_expenses); ?>">
+                        <input type="hidden" name="expected_cash_val" id="expected_cash_val_form" value="<?php echo max(0, $cash_sales + $credit_cash_collected - $total_expenses); ?>">
 
                         <label class="text-muted fw-bold small text-uppercase mb-2 d-block">End Meter (km)</label>
                         <input type="text" inputmode="numeric" name="end_meter" class="clean-input mono mb-4" required placeholder="e.g. 45250.5">
@@ -1136,6 +1278,17 @@ function installApp() {
                     { enableHighAccuracy: true, timeout: 5000 }
                 );
             } else { document.getElementById('endDayForm').submit(); }
+        }
+
+        function toggleChequeFields(method) {
+            const chequeFields = document.getElementById('chequeFields');
+            if (method === 'Cheque') {
+                chequeFields.style.display = 'block';
+                chequeFields.querySelectorAll('input').forEach(el => el.required = true);
+            } else {
+                chequeFields.style.display = 'none';
+                chequeFields.querySelectorAll('input').forEach(el => el.required = false);
+            }
         }
 
         // ── Background Location Ping ──
