@@ -1,14 +1,15 @@
 <?php
-// Enable error reporting for debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+
+
 require_once '../config/db.php';
 require_once '../includes/auth_check.php';
-requireRole(['rep', 'admin', 'supervisor']); // Allow management to view reports
+requireRole(['rep', 'admin', 'supervisor']);
 
-echo "<script>console.log('Route Summary: Page Load Started');</script>";
+
 
 $rep_id = $_SESSION['user_id'];
 $assignment_id = isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0;
@@ -26,8 +27,6 @@ try {
 } catch(PDOException $e) {
     // Column likely already exists
 }
-
-try {
 
 error_log("Route Summary Debug: DB Migration check done");
 
@@ -669,18 +668,6 @@ if (isset($_GET['pdf']) && $_GET['pdf'] == 1) {
     </script>
 </body>
 </html>
-<?php
-} catch (Throwable $e) {
-    error_log("Route Summary Fatal Error: " . $e->getMessage());
-    echo "<div style='padding: 20px; background: #fff0f0; border: 1px solid #ff0000; color: #cc0000; margin: 20px; border-radius: 8px;'>";
-    echo "<h3>System Error</h3>";
-    echo "<p>An error occurred while generating the route summary.</p>";
-    if (ini_get('display_errors')) {
-        echo "<hr><p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
-        echo "<p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . " on line " . $e->getLine() . "</p>";
-        echo "<pre style='font-size: 11px;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-    }
-    echo "</div>";
-    echo "<script>console.error('Route Summary Fatal:', " . json_encode($e->getMessage()) . ");</script>";
-}
-?>
+    </script>
+</body>
+</html>
