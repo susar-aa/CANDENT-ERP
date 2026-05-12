@@ -122,10 +122,6 @@ try {
     // 6. Credit Collections
     $credit_collected_cash = 0; $credit_collected_cheque = 0;
     try {
-        $collectionStmt = $pdo->prepare("SELECT method, SUM(amount) as total FROM dispatch_collections WHERE assignment_id = ? GROUP BY method");
-        // Wait, earlier the user said dispatch_collections exists. Let's check table name.
-        // In my previous logic I used customer_payments. 
-        // User's table list has BOTH. Usually collection for credit is in customer_payments.
         $collectionStmt = $pdo->prepare("SELECT method, SUM(amount) as total FROM customer_payments WHERE assignment_id = ? GROUP BY method");
         $collectionStmt->execute([$assignment_id]);
         $collections = $collectionStmt->fetchAll();
@@ -155,16 +151,16 @@ try {
             $products_html = '<tr><td colspan="2" style="text-align:center; padding:20px; color:#666;">No products sold.</td></tr>';
         } else {
             $chunks = array_chunk($products_sold, ceil(count($products_sold) / 2));
-            $products_html .= '<tr><td style="width:50%; vertical-align:top;"><table style="width:100%;">';
+            $products_html .= '<tr><td style="width:50%; vertical-align:top; padding-right:10px;"><table class="product-table">';
             if(!empty($chunks[0])) {
                 foreach($chunks[0] as $p) {
-                    $products_html .= '<tr><td style="padding:4px; border-bottom:1px solid #eee;">'.htmlspecialchars($p['name']).'</td><td style="text-align:right; font-weight:bold;">'.$p['total_qty'].'</td></tr>';
+                    $products_html .= '<tr><td class="prod-name">'.htmlspecialchars($p['name']).'</td><td class="prod-qty">'.$p['total_qty'].'</td></tr>';
                 }
             }
-            $products_html .= '</table></td><td style="width:50%; vertical-align:top; padding-left:15px;"><table style="width:100%;">';
+            $products_html .= '</table></td><td style="width:50%; vertical-align:top; padding-left:10px;"><table class="product-table">';
             if(!empty($chunks[1])) {
                 foreach($chunks[1] as $p) {
-                    $products_html .= '<tr><td style="padding:4px; border-bottom:1px solid #eee;">'.htmlspecialchars($p['name']).'</td><td style="text-align:right; font-weight:bold;">'.$p['total_qty'].'</td></tr>';
+                    $products_html .= '<tr><td class="prod-name">'.htmlspecialchars($p['name']).'</td><td class="prod-qty">'.$p['total_qty'].'</td></tr>';
                 }
             }
             $products_html .= '</table></td></tr>';
@@ -174,76 +170,129 @@ try {
         <html>
         <head>
             <style>
-                body { font-family: Helvetica, sans-serif; font-size: 11px; color: #1e293b; }
-                .header { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #2563eb; }
-                .grid { width: 100%; margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
-                .title { font-weight: bold; color: #64748b; text-transform: uppercase; font-size: 10px; margin-bottom: 8px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
-                .val { text-align: right; font-weight: bold; }
-                .money { font-family: 'Courier'; }
-                .total { background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: bold; }
-                .success { color: #16a34a; } .danger { color: #dc2626; }
+                @page { margin: 30px; }
+                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #334155; line-height: 1.4; }
+                .header-container { text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #e2e8f0; }
+                .header-title { font-size: 22px; font-weight: bold; color: #1e40af; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                .header-subtitle { font-size: 12px; color: #64748b; margin-top: 5px; }
+                
+                .section-container { margin-bottom: 20px; page-break-inside: avoid; }
+                .section-title { 
+                    font-size: 11px; font-weight: bold; color: #ffffff; background-color: #3b82f6; 
+                    padding: 6px 10px; margin-bottom: 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+                }
+                
+                table { width: 100%; border-collapse: collapse; }
+                .layout-table { width: 100%; table-layout: fixed; margin-bottom: 20px; }
+                .layout-table > tbody > tr > td { padding: 0 10px; vertical-align: top; }
+                .layout-table > tbody > tr > td:first-child { padding-left: 0; }
+                .layout-table > tbody > tr > td:last-child { padding-right: 0; }
+                
+                .data-table { width: 100%; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+                .data-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+                .data-table tr:last-child td { border-bottom: none; }
+                .data-table .label { color: #64748b; font-weight: normal; }
+                .data-table .val { text-align: right; font-weight: bold; color: #0f172a; }
+                .data-table .money { font-family: 'Courier New', Courier, monospace; letter-spacing: -0.5px; }
+                
+                .total-row td { background-color: #f8fafc; font-weight: bold; font-size: 13px; color: #0f172a; border-top: 2px solid #e2e8f0; }
+                .total-row .val { color: #1d4ed8; }
+                
+                .highlight-success td { background-color: #f0fdf4; }
+                .highlight-success .val { color: #16a34a; }
+                .highlight-danger td { background-color: #fef2f2; }
+                .highlight-danger .val { color: #dc2626; }
+                .highlight-warning td { background-color: #fffbeb; }
+                .highlight-warning .val { color: #d97706; }
+                
+                .product-table { width: 100%; border: 1px solid #e2e8f0; border-radius: 4px; }
+                .product-table td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; }
+                .product-table tr:last-child td { border-bottom: none; }
+                .prod-name { color: #475569; font-size: 11px; }
+                .prod-qty { text-align: right; font-weight: bold; color: #0f172a; background-color: #f8fafc; width: 40px; }
             </style>
         </head>
         <body>
-            <div class='header'>Route Summary Dashboard</div>
-            <table style='width:100%; border-spacing: 10px;'>
+            <div class='header-container'>
+                <h1 class='header-title'>Route Summary Report</h1>
+                <div class='header-subtitle'>Generated on: " . date('Y-m-d H:i:s') . "</div>
+            </div>
+            
+            <table class='layout-table'>
                 <tr>
-                    <td style='width:50%; vertical-align:top;'>
-                        <div class='grid'><div class='title'>General Details</div>
-                            <table style='width:100%'>
-                                <tr><td>Date:</td><td class='val'>$disp_date</td></tr>
-                                <tr><td>Rep Name:</td><td class='val'>".htmlspecialchars($routeInfo['rep_name'])."</td></tr>
-                                <tr><td>Distributor:</td><td class='val'>Candent</td></tr>
-                                <tr><td>Route:</td><td class='val'>".htmlspecialchars($routeInfo['route_name'])."</td></tr>
-                                <tr><td>Driver:</td><td class='val'>".htmlspecialchars($routeInfo['driver_name'] ?: 'Self-Driven')."</td></tr>
+                    <td style='width: 50%;'>
+                        <div class='section-container'>
+                            <div class='section-title'>General Details</div>
+                            <table class='data-table'>
+                                <tr><td class='label'>Date</td><td class='val'>$disp_date</td></tr>
+                                <tr><td class='label'>Rep Name</td><td class='val'>".htmlspecialchars($routeInfo['rep_name'])."</td></tr>
+                                <tr><td class='label'>Distributor</td><td class='val'>Candent</td></tr>
+                                <tr><td class='label'>Route</td><td class='val'>".htmlspecialchars($routeInfo['route_name'])."</td></tr>
+                                <tr><td class='label'>Driver</td><td class='val'>".htmlspecialchars($routeInfo['driver_name'] ?: 'Self-Driven')."</td></tr>
                             </table>
                         </div>
                     </td>
-                    <td style='width:50%; vertical-align:top;'>
-                        <div class='grid'><div class='title'>Visit Metrics</div>
-                            <table style='width:100%'>
-                                <tr><td>Productive Calls:</td><td class='val success'>$productive_calls</td></tr>
-                                <tr><td>Unproductive Calls:</td><td class='val danger'>$unproductive_calls</td></tr>
-                                <tr><td>Total Calls Visited:</td><td class='val'>$calls_visited</td></tr>
-                                <tr class='total' style='background:#fef3c7; color:#92400e;'><td>TOTAL P/C:</td><td class='val'>$pc_ratio%</td></tr>
-                            </table>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td style='width:50%; vertical-align:top;'>
-                        <div class='grid'><div class='title'>Sales Breakdown</div>
-                            <table style='width:100%'>
-                                <tr><td>Cash Sale:</td><td class='val money'>Rs $f_cash</td></tr>
-                                <tr><td>Bank Transfer:</td><td class='val money'>Rs $f_bank</td></tr>
-                                <tr><td>Cheque Sale:</td><td class='val money'>Rs $f_cheque</td></tr>
-                                <tr><td>Credit Sale:</td><td class='val money danger'>Rs $f_credit</td></tr>
-                                <tr class='total'><td>TOTAL SALE:</td><td class='val money'>Rs $f_total</td></tr>
-                            </table>
-                        </div>
-                    </td>
-                    <td style='width:50%; vertical-align:top;'>
-                        <div class='grid'><div class='title'>Monthly Performance</div>
-                            <table style='width:100%'>
-                                <tr><td>Month Up to Yesterday:</td><td class='val money'>Rs $f_month</td></tr>
-                                <tr class='total' style='background:#ecfdf5; color:#047857;'><td>CUMULATIVE SALE:</td><td class='val money'>Rs $f_cumu</td></tr>
-                                <tr><td colspan='2' style='height:10px;'></td></tr>
-                                <tr class='title'><td colspan='2'>Credit Collections</td></tr>
-                                <tr><td>Cash Collected:</td><td class='val money success'>Rs $f_col_cash</td></tr>
-                                <tr><td>Cheque Collected:</td><td class='val money success'>Rs $f_col_cheque</td></tr>
+                    <td style='width: 50%;'>
+                        <div class='section-container'>
+                            <div class='section-title'>Visit Metrics</div>
+                            <table class='data-table'>
+                                <tr class='highlight-success'><td class='label'>Productive Calls</td><td class='val'>$productive_calls</td></tr>
+                                <tr class='highlight-danger'><td class='label'>Unproductive Calls</td><td class='val'>$unproductive_calls</td></tr>
+                                <tr><td class='label'>Total Calls Visited</td><td class='val'>$calls_visited</td></tr>
+                                <tr class='total-row highlight-warning'><td class='label'>TOTAL P/C RATIO</td><td class='val'>$pc_ratio%</td></tr>
                             </table>
                         </div>
                     </td>
                 </tr>
             </table>
-            <div class='grid' style='width:100%'>
-                <div class='title'>Products Sold Today</div>
-                <table style='width:100%'>$products_html</table>
+
+            <table class='layout-table'>
+                <tr>
+                    <td style='width: 50%;'>
+                        <div class='section-container'>
+                            <div class='section-title'>Sales Breakdown</div>
+                            <table class='data-table'>
+                                <tr><td class='label'>Cash Sale</td><td class='val money'>Rs $f_cash</td></tr>
+                                <tr><td class='label'>Bank Transfer</td><td class='val money'>Rs $f_bank</td></tr>
+                                <tr><td class='label'>Cheque Sale</td><td class='val money'>Rs $f_cheque</td></tr>
+                                <tr><td class='label'>Credit Sale</td><td class='val money' style='color:#dc2626;'>Rs $f_credit</td></tr>
+                                <tr class='total-row'><td class='label'>TOTAL SALE</td><td class='val money'>Rs $f_total</td></tr>
+                            </table>
+                        </div>
+                    </td>
+                    <td style='width: 50%;'>
+                        <div class='section-container'>
+                            <div class='section-title'>Monthly Performance</div>
+                            <table class='data-table'>
+                                <tr><td class='label'>Month Up to Yesterday</td><td class='val money'>Rs $f_month</td></tr>
+                                <tr class='total-row highlight-success'><td class='label'>CUMULATIVE SALE</td><td class='val money'>Rs $f_cumu</td></tr>
+                            </table>
+                        </div>
+                        
+                        <div class='section-container' style='margin-top: 15px;'>
+                            <div class='section-title' style='background-color:#10b981;'>Credit Collections</div>
+                            <table class='data-table'>
+                                <tr><td class='label'>Cash Collected</td><td class='val money'>Rs $f_col_cash</td></tr>
+                                <tr><td class='label'>Cheque Collected</td><td class='val money'>Rs $f_col_cheque</td></tr>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <div class='section-container'>
+                <div class='section-title' style='background-color:#475569;'>Products Sold Today</div>
+                <table style='width: 100%;'>
+                    $products_html
+                </table>
             </div>
         </body>
         </html>";
 
         $dompdf = new \Dompdf\Dompdf();
+        $options = $dompdf->getOptions();
+        $options->set('isHtml5ParserEnabled', true);
+        $dompdf->setOptions($options);
         $dompdf->loadHtml($pdfHtml);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
@@ -260,107 +309,327 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Route Summary Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #2563EB; --bg: #F8FAFC; --surface: #FFFFFF; --text: #0F172A; --text-muted: #64748B; --border: #E2E8F0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 15px; margin: 0; }
-        .card { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 15px; padding: 18px; }
-        .card-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+        :root { 
+            --primary: #3b82f6; 
+            --primary-dark: #2563eb;
+            --bg: #f8fafc; 
+            --surface: #ffffff; 
+            --text-main: #0f172a; 
+            --text-muted: #64748b; 
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        
+        body { 
+            background-color: var(--bg); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+            padding: 20px 15px; 
+            margin: 0; 
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title { margin: 0; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.5px; }
+        .header-subtitle { opacity: 0.8; font-size: 0.9rem; margin-top: 4px; }
+        
+        .btn-share {
+            background-color: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 50px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-share:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .metric-card { 
+            background: var(--surface); 
+            border-radius: 16px; 
+            border: 1px solid var(--border); 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -2px rgba(0,0,0,0.02); 
+            height: 100%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+        }
+        
+        .card-header-custom {
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 1.05rem;
+        }
+        
+        .card-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+        
+        .icon-blue { background: #eff6ff; color: #3b82f6; }
+        .icon-green { background: #ecfdf5; color: #10b981; }
+        .icon-purple { background: #f5f3ff; color: #8b5cf6; }
+        .icon-orange { background: #fffbeb; color: #f59e0b; }
+        .icon-slate { background: #f1f5f9; color: #64748b; }
+
+        .card-body-custom { padding: 12px 20px 20px; }
+
+        .info-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 10px 0; 
+            border-bottom: 1px dashed var(--border); 
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+        
         .info-row:last-child { border-bottom: none; }
-        .val { font-weight: 700; }
-        .money { font-family: monospace; font-size: 0.95rem; }
-        .total-row { background: #eff6ff; padding: 12px; border-radius: 12px; border: 1px dashed #bfdbfe; margin-top: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .total-row span:first-child { font-weight: 800; color: var(--primary); }
-        .total-row span:last-child { font-weight: 800; color: var(--primary); font-size: 1.1rem; }
-        .badge-pill { background: var(--primary); color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+        
+        .val { font-weight: 600; color: var(--text-main); }
+        .money { font-family: 'Courier New', Courier, monospace; font-size: 1rem; font-weight: 700; letter-spacing: -0.5px; }
+        
+        .total-box { 
+            background: #f8fafc; 
+            padding: 14px 16px; 
+            border-radius: 12px; 
+            margin-top: 12px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            border: 1px solid var(--border);
+        }
+        
+        .total-box.primary { background: #eff6ff; border-color: #bfdbfe; }
+        .total-box.primary .label { color: #1e40af; }
+        .total-box.primary .val { color: #1d4ed8; }
+        
+        .total-box.success { background: #ecfdf5; border-color: #a7f3d0; }
+        .total-box.success .label { color: #065f46; }
+        .total-box.success .val { color: #047857; }
+        
+        .total-box.warning { background: #fffbeb; border-color: #fde68a; }
+        .total-box.warning .label { color: #92400e; }
+        .total-box.warning .val { color: #b45309; }
+        
+        .total-box .label { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .total-box .val { font-weight: 800; font-size: 1.15rem; }
+
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            transition: background-color 0.2s;
+        }
+        
+        .product-item:hover { background: #f1f5f9; }
+        .product-name { font-size: 0.9rem; font-weight: 500; color: var(--text-main); }
+        .product-qty { 
+            background: var(--surface); 
+            color: var(--primary); 
+            min-width: 36px;
+            text-align: center;
+            padding: 4px 8px; 
+            border-radius: 20px; 
+            font-size: 0.85rem; 
+            font-weight: 700; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .text-success-custom { color: var(--success); }
+        .text-danger-custom { color: var(--danger); }
+        
+        @media (max-width: 768px) {
+            .dashboard-header { flex-direction: column; text-align: center; gap: 16px; padding: 20px; }
+            .btn-share { width: 100%; justify-content: center; }
+        }
     </style>
 </head>
 <body>
-    <div style="max-width: 900px; margin: 0 auto;">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold m-0"><i class="bi bi-bar-chart-fill text-primary me-2"></i>Route Summary</h4>
-            <div class="d-flex gap-2">
-                <button onclick="sharePDF()" id="shareBtn" class="btn btn-primary rounded-pill px-4 fw-bold">
-                    <i class="bi bi-share-fill me-2"></i> Share
-                </button>
+    <div style="max-width: 1000px; margin: 0 auto;">
+        
+        <div class="dashboard-header">
+            <div>
+                <h1 class="header-title"><i class="bi bi-geo-alt-fill me-2 opacity-75"></i>Route Summary</h1>
+                <div class="header-subtitle">Performance dashboard for <?php echo htmlspecialchars($routeInfo['rep_name']); ?></div>
             </div>
+            <button onclick="sharePDF()" id="shareBtn" class="btn btn-share d-flex align-items-center">
+                <i class="bi bi-file-earmark-pdf-fill me-2 fs-5"></i> Export PDF
+            </button>
         </div>
 
-        <div class="row g-3">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-title"><i class="bi bi-info-circle"></i> General Details</div>
-                    <div class="info-row"><span>Date</span><span class="val"><?php echo date('d M Y', strtotime($assign_date)); ?></span></div>
-                    <div class="info-row"><span>Rep Name</span><span class="val"><?php echo htmlspecialchars($routeInfo['rep_name']); ?></span></div>
-                    <div class="info-row"><span>Distributor</span><span class="val text-primary">Candent</span></div>
-                    <div class="info-row"><span>Route</span><span class="val"><?php echo htmlspecialchars($routeInfo['route_name']); ?></span></div>
-                    <div class="info-row"><span>Work With (Driver)</span><span class="val"><?php echo htmlspecialchars($routeInfo['driver_name'] ?: 'Self-Driven'); ?></span></div>
+        <div class="row g-4">
+            <!-- General Details -->
+            <div class="col-lg-6">
+                <div class="metric-card">
+                    <div class="card-header-custom">
+                        <div class="card-icon icon-blue"><i class="bi bi-info-circle-fill"></i></div>
+                        General Details
+                    </div>
+                    <div class="card-body-custom">
+                        <div class="info-row"><span>Date</span><span class="val"><?php echo date('d M Y', strtotime($assign_date)); ?></span></div>
+                        <div class="info-row"><span>Rep Name</span><span class="val"><?php echo htmlspecialchars($routeInfo['rep_name']); ?></span></div>
+                        <div class="info-row"><span>Distributor</span><span class="val text-primary">Candent</span></div>
+                        <div class="info-row"><span>Route</span><span class="val"><?php echo htmlspecialchars($routeInfo['route_name']); ?></span></div>
+                        <div class="info-row"><span>Driver</span><span class="val"><?php echo htmlspecialchars($routeInfo['driver_name'] ?: 'Self-Driven'); ?></span></div>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-title"><i class="bi bi-shop"></i> Visit Metrics</div>
-                    <div class="info-row"><span>Productive Calls</span><span class="val text-success"><?php echo $productive_calls; ?></span></div>
-                    <div class="info-row"><span>Unproductive Calls</span><span class="val text-danger"><?php echo $unproductive_calls; ?></span></div>
-                    <div class="info-row"><span>Total Calls Visited</span><span class="val"><?php echo $calls_visited; ?></span></div>
-                    <div class="total-row" style="background:#fffbeb; border-color:#fde68a;"><span style="color:#b45309;">TOTAL P/C</span><span style="color:#b45309;"><?php echo $pc_ratio; ?>%</span></div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-title"><i class="bi bi-wallet2"></i> Sales Breakdown</div>
-                    <div class="info-row"><span>Cash Sale</span><span class="val money">Rs <?php echo number_format($cash_sale, 2); ?></span></div>
-                    <div class="info-row"><span>Bank Transfer</span><span class="val money">Rs <?php echo number_format($bank_sale, 2); ?></span></div>
-                    <div class="info-row"><span>Cheque Sale</span><span class="val money">Rs <?php echo number_format($cheque_sale, 2); ?></span></div>
-                    <div class="info-row"><span>Credit Sale</span><span class="val money text-danger">Rs <?php echo number_format($credit_sale, 2); ?></span></div>
-                    <div class="total-row"><span>TOTAL SALE</span><span class="money">Rs <?php echo number_format($total_sale, 2); ?></span></div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-title"><i class="bi bi-graph-up-arrow"></i> Monthly Performance</div>
-                    <div class="info-row"><span>Month Up to Yesterday</span><span class="val money">Rs <?php echo number_format($month_up_to_yesterday, 2); ?></span></div>
-                    <div class="total-row" style="background:#ecfdf5; border-color:#a7f3d0;"><span style="color:#047857;">CUMULATIVE SALE</span><span style="color:#047857;" class="money">Rs <?php echo number_format($cumulative_sale, 2); ?></span></div>
-                    <div style="height:15px;"></div>
-                    <div class="card-title" style="border:none;"><i class="bi bi-cash-coin"></i> Credit Collections</div>
-                    <div class="info-row"><span>Cash Collected</span><span class="val money text-success">Rs <?php echo number_format($credit_collected_cash, 2); ?></span></div>
-                    <div class="info-row"><span>Cheque Collected</span><span class="val money text-success">Rs <?php echo number_format($credit_collected_cheque, 2); ?></span></div>
-                </div>
-            </div>
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-title"><i class="bi bi-box-seam"></i> Products Sold Today</div>
-                    <?php if(empty($products_sold)): ?>
-                        <div class="text-center text-muted py-3">No products sold today.</div>
-                    <?php else: ?>
-                        <div class="row">
-                            <?php foreach($products_sold as $p): ?>
-                                <div class="col-md-6 mb-2">
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded" style="border:1px solid #eee;">
-                                        <span class="small fw-bold"><?php echo htmlspecialchars($p['name']); ?></span>
-                                        <span class="badge-pill"><?php echo $p['total_qty']; ?></span>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
+
+            <!-- Visit Metrics -->
+            <div class="col-lg-6">
+                <div class="metric-card">
+                    <div class="card-header-custom">
+                        <div class="card-icon icon-orange"><i class="bi bi-shop"></i></div>
+                        Visit Metrics
+                    </div>
+                    <div class="card-body-custom">
+                        <div class="info-row"><span>Productive Calls</span><span class="val text-success-custom"><?php echo $productive_calls; ?></span></div>
+                        <div class="info-row"><span>Unproductive Calls</span><span class="val text-danger-custom"><?php echo $unproductive_calls; ?></span></div>
+                        <div class="info-row"><span>Total Calls Visited</span><span class="val"><?php echo $calls_visited; ?></span></div>
+                        
+                        <div class="total-box warning mt-4">
+                            <span class="label">Total P/C Ratio</span>
+                            <span class="val"><?php echo $pc_ratio; ?>%</span>
                         </div>
-                    <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Breakdown -->
+            <div class="col-lg-6">
+                <div class="metric-card">
+                    <div class="card-header-custom">
+                        <div class="card-icon icon-purple"><i class="bi bi-wallet2"></i></div>
+                        Sales Breakdown
+                    </div>
+                    <div class="card-body-custom">
+                        <div class="info-row"><span>Cash Sale</span><span class="val money">Rs <?php echo number_format($cash_sale, 2); ?></span></div>
+                        <div class="info-row"><span>Bank Transfer</span><span class="val money">Rs <?php echo number_format($bank_sale, 2); ?></span></div>
+                        <div class="info-row"><span>Cheque Sale</span><span class="val money">Rs <?php echo number_format($cheque_sale, 2); ?></span></div>
+                        <div class="info-row"><span>Credit Sale</span><span class="val money text-danger-custom">Rs <?php echo number_format($credit_sale, 2); ?></span></div>
+                        
+                        <div class="total-box primary mt-3">
+                            <span class="label">Total Sale</span>
+                            <span class="val money">Rs <?php echo number_format($total_sale, 2); ?></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Performance & Collections -->
+            <div class="col-lg-6">
+                <div class="metric-card d-flex flex-column">
+                    <div class="card-header-custom">
+                        <div class="card-icon icon-green"><i class="bi bi-graph-up-arrow"></i></div>
+                        Monthly Performance
+                    </div>
+                    <div class="card-body-custom pb-2">
+                        <div class="info-row"><span>Month Up to Yesterday</span><span class="val money">Rs <?php echo number_format($month_up_to_yesterday, 2); ?></span></div>
+                        
+                        <div class="total-box success mt-3 mb-4">
+                            <span class="label">Cumulative Sale</span>
+                            <span class="val money">Rs <?php echo number_format($cumulative_sale, 2); ?></span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-header-custom mt-auto border-top-0 pt-0">
+                        <div class="card-icon icon-slate"><i class="bi bi-cash-coin"></i></div>
+                        Credit Collections
+                    </div>
+                    <div class="card-body-custom pt-2">
+                        <div class="info-row"><span>Cash Collected</span><span class="val money text-success-custom">Rs <?php echo number_format($credit_collected_cash, 2); ?></span></div>
+                        <div class="info-row"><span>Cheque Collected</span><span class="val money text-success-custom">Rs <?php echo number_format($credit_collected_cheque, 2); ?></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Sold -->
+            <div class="col-12">
+                <div class="metric-card">
+                    <div class="card-header-custom">
+                        <div class="card-icon icon-slate"><i class="bi bi-box-seam"></i></div>
+                        Products Sold Today
+                    </div>
+                    <div class="card-body-custom">
+                        <?php if(empty($products_sold)): ?>
+                            <div class="text-center text-muted py-5 d-flex flex-column align-items-center">
+                                <i class="bi bi-inbox fs-1 mb-2 text-light"></i>
+                                <p class="mb-0">No products sold during this assignment.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="row g-2 mt-1">
+                                <?php foreach($products_sold as $p): ?>
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="product-item">
+                                            <span class="product-name text-truncate me-2" title="<?php echo htmlspecialchars($p['name']); ?>">
+                                                <?php echo htmlspecialchars($p['name']); ?>
+                                            </span>
+                                            <span class="product-qty"><?php echo $p['total_qty']; ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
     async function sharePDF() {
         const btn = document.getElementById('shareBtn');
-        const original = btn.innerHTML;
+        const originalContent = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Preparing...';
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Generating...';
 
         try {
             const response = await fetch('?assignment_id=<?php echo $assignment_id; ?>&pdf=1');
-            if (!response.ok) throw new Error('Failed to fetch PDF');
+            if (!response.ok) throw new Error('Failed to fetch PDF data from server.');
             
             const blob = await response.blob();
             const fileName = 'Route_Summary_<?php echo $assign_date; ?>.pdf';
@@ -369,21 +638,26 @@ try {
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     title: 'Route Summary - <?php echo $assign_date; ?>',
-                    text: 'Attached is the route summary report.',
+                    text: 'Attached is the route summary report for your records.',
                     files: [file]
                 });
             } else {
+                // Fallback for browsers that don't support Web Share API with files (like desktop browsers)
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url; a.download = fileName;
-                document.body.appendChild(a); a.click();
+                a.href = url; 
+                a.download = fileName;
+                document.body.appendChild(a); 
+                a.click();
                 window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
             }
         } catch (e) {
-            alert('Error: ' + e.message);
+            console.error(e);
+            alert('An error occurred while generating the PDF: ' + e.message);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = original;
+            btn.innerHTML = originalContent;
         }
     }
     </script>
@@ -391,6 +665,10 @@ try {
 </html>
 <?php
 } catch (Throwable $e) {
-    echo "<div class='alert alert-danger m-3'><h5>System Error</h5><p>".htmlspecialchars($e->getMessage())."</p></div>";
+    echo "<div class='container mt-5'><div class='alert alert-danger shadow-sm'>
+            <h4 class='alert-heading'><i class='bi bi-exclamation-triangle-fill me-2'></i>System Error</h4>
+            <hr>
+            <p class='mb-0'>".htmlspecialchars($e->getMessage())."</p>
+          </div></div>";
 }
 ?>

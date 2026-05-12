@@ -403,6 +403,11 @@ $tracking_pages  = ['live_tracking.php', 'route_tracking_history.php'];
                     <span class="sub-dot"></span> Route History
                 </a></li>
                 <?php endif; ?>
+                <?php if(hasAccess('customer_map.php')): ?>
+                <li><a href="customer_map.php" class="<?php echo $cur=='customer_map.php'?'active':''; ?>">
+                    <span class="sub-dot"></span> Customer Map
+                </a></li>
+                <?php endif; ?>
             </ul>
         </div>
         <?php endif; ?>
