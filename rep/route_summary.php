@@ -9,8 +9,7 @@ require_once '../config/db.php';
 require_once '../includes/auth_check.php';
 requireRole(['rep', 'admin', 'supervisor']);
 
-
-
+try {
 $rep_id = $_SESSION['user_id'];
 $assignment_id = isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0;
 
@@ -667,7 +666,16 @@ if (isset($_GET['pdf']) && $_GET['pdf'] == 1) {
     }
     </script>
 </body>
-</html>
     </script>
 </body>
 </html>
+<?php
+} catch (Throwable $e) {
+    echo "<div style='background:#fee; color:#c00; padding:20px; border:2px solid #c00; margin:20px; font-family:sans-serif; position:relative; z-index:9999;'>";
+    echo "<h2>Internal Server Error (Antigravity Debugger)</h2>";
+    echo "<p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
+    echo "<p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . " on line " . $e->getLine() . "</p>";
+    echo "<pre style='background:#fff; padding:10px; border:1px solid #ddd; max-height:300px; overflow:auto;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+    echo "</div>";
+}
+?>

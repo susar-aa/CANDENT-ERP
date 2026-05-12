@@ -1057,63 +1057,69 @@ include '../includes/sidebar.php';
 </div>
 
 <script>
-document.getElementById('addLoadRowBtn').addEventListener('click', function() {
-    const container = document.getElementById('loadItemsContainer');
-    const newRow = document.querySelector('.load-row').cloneNode(true);
-    newRow.querySelector('select').value = '';
-    newRow.querySelector('input').value = '';
-    container.appendChild(newRow);
-});
+const addBtn = document.getElementById('addLoadRowBtn');
+if (addBtn) {
+    addBtn.addEventListener('click', function() {
+        const container = document.getElementById('loadItemsContainer');
+        const newRow = document.querySelector('.load-row').cloneNode(true);
+        newRow.querySelector('select').value = '';
+        newRow.querySelector('input').value = '';
+        container.appendChild(newRow);
+    });
+}
 
 let currentAiData = [];
 let currentTrips = 1;
 
-document.getElementById('btnSuggestStock').addEventListener('click', function() {
-    const routeSelect = document.querySelector('select[name="route_id"]');
-    const routeId = routeSelect.value;
-    
-    if (!routeId) {
-        alert('Please select a Route from the dropdown first to get AI suggestions.');
-        return;
-    }
-
-    const btn = this;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing...';
-    btn.disabled = true;
-
-    fetch('dispatch.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `ajax_action=get_ai_stock_suggestion&route_id=${routeId}`
-    })
-    .then(res => res.json())
-    .then(result => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-
-        if (result.success) {
-            currentAiData = result.sales_data;
-            currentTrips = result.trips_analyzed;
-            
-            if (currentAiData.length === 0) {
-                alert('Not enough sales data found for this route in the last 3 months to generate suggestions.');
-                return;
-            }
-
-            document.getElementById('ai_trips_badge').innerText = currentTrips + ' Trips Analyzed';
-            renderAiSuggestions();
-            new bootstrap.Modal(document.getElementById('aiSuggestModal')).show();
-        } else {
-            alert(result.message);
+const suggestBtn = document.getElementById('btnSuggestStock');
+if (suggestBtn) {
+    suggestBtn.addEventListener('click', function() {
+        const routeSelect = document.querySelector('select[name="route_id"]');
+        const routeId = routeSelect.value;
+        
+        if (!routeId) {
+            alert('Please select a Route from the dropdown first to get AI suggestions.');
+            return;
         }
-    })
-    .catch(err => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        alert('Network error while fetching AI suggestions.');
+
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Analyzing...';
+        btn.disabled = true;
+
+        fetch('dispatch.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `ajax_action=get_ai_stock_suggestion&route_id=${routeId}`
+        })
+        .then(res => res.json())
+        .then(result => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            if (result.success) {
+                currentAiData = result.sales_data;
+                currentTrips = result.trips_analyzed;
+                
+                if (currentAiData.length === 0) {
+                    alert('Not enough sales data found for this route in the last 3 months to generate suggestions.');
+                    return;
+                }
+
+                document.getElementById('ai_trips_badge').innerText = currentTrips + ' Trips Analyzed';
+                renderAiSuggestions();
+                new bootstrap.Modal(document.getElementById('aiSuggestModal')).show();
+            } else {
+                alert(result.message);
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert('Network error while fetching AI suggestions.');
+        });
     });
-});
+}
 
 function renderAiSuggestions() {
     const tbody = document.getElementById('ai_suggestions_tbody');
@@ -1148,41 +1154,45 @@ function renderAiSuggestions() {
     }
 }
 
-document.getElementById('ai_buffer_percent').addEventListener('input', renderAiSuggestions);
+const bufferInput = document.getElementById('ai_buffer_percent');
+if (bufferInput) bufferInput.addEventListener('input', renderAiSuggestions);
 
-document.getElementById('btnApplyAiSuggestion').addEventListener('click', function() {
-    // Save one row as template before clearing
-    const templateRow = document.querySelector('.load-row').cloneNode(true);
-    templateRow.querySelector('select').value = '';
-    templateRow.querySelector('input').value = '';
+const applyBtn = document.getElementById('btnApplyAiSuggestion');
+if (applyBtn) {
+    applyBtn.addEventListener('click', function() {
+        // Save one row as template before clearing
+        const templateRow = document.querySelector('.load-row').cloneNode(true);
+        templateRow.querySelector('select').value = '';
+        templateRow.querySelector('input').value = '';
 
-    const container = document.getElementById('loadItemsContainer');
-    container.innerHTML = '';
+        const container = document.getElementById('loadItemsContainer');
+        container.innerHTML = '';
 
-    const inputs = document.querySelectorAll('.ai-suggested-input');
-    let added = 0;
-    
-    inputs.forEach(input => {
-        const tr = input.closest('tr');
-        const productId = tr.dataset.productId;
-        const qty = parseInt(input.value) || 0;
+        const inputs = document.querySelectorAll('.ai-suggested-input');
+        let added = 0;
         
-        if (qty > 0) {
-            const newRow = templateRow.cloneNode(true);
-            newRow.querySelector('select').value = productId;
-            newRow.querySelector('input').value = qty;
-            container.appendChild(newRow);
-            added++;
+        inputs.forEach(input => {
+            const tr = input.closest('tr');
+            const productId = tr.dataset.productId;
+            const qty = parseInt(input.value) || 0;
+            
+            if (qty > 0) {
+                const newRow = templateRow.cloneNode(true);
+                newRow.querySelector('select').value = productId;
+                newRow.querySelector('input').value = qty;
+                container.appendChild(newRow);
+                added++;
+            }
+        });
+
+        if (added === 0) {
+            container.appendChild(templateRow);
+            alert('No products with quantity > 0 were applied.');
+        } else {
+            bootstrap.Modal.getInstance(document.getElementById('aiSuggestModal')).hide();
         }
     });
-
-    if (added === 0) {
-        container.appendChild(templateRow);
-        alert('No products with quantity > 0 were applied.');
-    } else {
-        bootstrap.Modal.getInstance(document.getElementById('aiSuggestModal')).hide();
-    }
-});
+}
 
 // --- Unload Modal Logic ---
 function openUnloadModal(assignmentId) {
