@@ -6,14 +6,19 @@ error_reporting(E_ALL);
 
 require_once '../config/db.php';
 require_once '../includes/auth_check.php';
-requireRole(['rep']); // Strictly for Sales Reps
+requireRole(['rep', 'admin', 'supervisor']); // Allow management to view reports
+
+echo "<script>console.log('Route Summary: Page Load Started');</script>";
 
 $rep_id = $_SESSION['user_id'];
 $assignment_id = isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0;
 
 if (!$assignment_id) {
+    error_log("Route Summary Debug: No assignment_id provided");
     die("Invalid Assignment ID.");
 }
+
+error_log("Route Summary Debug: Starting for assignment_id $assignment_id and user_id " . ($_SESSION['user_id'] ?? 'NONE'));
 
 // Ensure database schema is up-to-date
 try {
@@ -22,23 +27,41 @@ try {
     // Column likely already exists
 }
 
+try {
+
+error_log("Route Summary Debug: DB Migration check done");
+
 // 1. Fetch Route, Rep, and Driver Info
-$routeStmt = $pdo->prepare("
+$sql = "
     SELECT rr.*, r.name as route_name, e.name as driver_name, u.name as rep_name
     FROM rep_routes rr
     JOIN routes r ON rr.route_id = r.id
     LEFT JOIN employees e ON rr.driver_id = e.id
     LEFT JOIN users u ON rr.rep_id = u.id
-    WHERE rr.id = ? AND rr.rep_id = ?
-");
-$routeStmt->execute([$assignment_id, $rep_id]);
+    WHERE rr.id = ?
+";
+$params = [$assignment_id];
+
+// Reps can only see their own routes, but admins/supervisors can see all
+if ($_SESSION['user_role'] === 'rep') {
+    $sql .= " AND rr.rep_id = ?";
+    $params[] = $rep_id;
+}
+
+$routeStmt = $pdo->prepare($sql);
+$routeStmt->execute($params);
 $routeInfo = $routeStmt->fetch();
 
 if (!$routeInfo) {
+    error_log("Route Summary Debug: Route $assignment_id not found for user $rep_id (Role: " . $_SESSION['user_role'] . ")");
     die("Route not found or access denied.");
 }
 
+// Use the Rep ID associated with the route for all subsequent queries
+$actual_rep_id = $routeInfo['rep_id'];
+
 $assign_date = $routeInfo['assign_date'];
+error_log("Route Summary Debug: Route found for date $assign_date");
 
 // 2. Fetch Orders for this assignment to calculate Sales and Productive Calls
 $ordersStmt = $pdo->prepare("
@@ -87,7 +110,7 @@ $unprodStmt = $pdo->prepare("
     FROM unproductive_visits
     WHERE rep_id = ? AND DATE(created_at) = ?
 ");
-$unprodStmt->execute([$rep_id, $assign_date]);
+$unprodStmt->execute([$actual_rep_id, $assign_date]);
 $unproductive_calls = (int)$unprodStmt->fetchColumn();
 
 $calls_visited = $productive_calls + $unproductive_calls;
@@ -102,7 +125,7 @@ $monthlyStmt = $pdo->prepare("
     AND DATE(created_at) >= DATE_FORMAT(?, '%Y-%m-01')
     AND DATE(created_at) < ?
 ");
-$monthlyStmt->execute([$rep_id, $assign_date, $assign_date]);
+$monthlyStmt->execute([$actual_rep_id, $assign_date, $assign_date]);
 $month_up_to_yesterday = (float)$monthlyStmt->fetchColumn();
 
 $cumulative_sale = $month_up_to_yesterday + $total_sale;
@@ -123,6 +146,7 @@ $products_sold = $itemsStmt->fetchAll();
 $credit_collected_cash = 0;
 $credit_collected_cheque = 0;
 
+error_log("Route Summary Debug: Fetching collections");
 try {
     // 6. Fetch Credit Collections
     $collectionStmt = $pdo->prepare("SELECT method, SUM(amount) as total FROM customer_payments WHERE assignment_id = ? GROUP BY method");
@@ -134,8 +158,11 @@ try {
         if ($col['method'] == 'Cheque') $credit_collected_cheque = (float)$col['total'];
     }
 } catch (Exception $e) {
+    error_log("Route Summary Debug: Collections fetch failed: " . $e->getMessage());
     // If table or column is missing, fail silently with 0 values
 }
+error_log("Route Summary Debug: Finalizing sales data");
+echo "<script>console.log('Route Summary: Data Fetching Completed');</script>";
 
 
 // ============================================================================
@@ -642,3 +669,18 @@ if (isset($_GET['pdf']) && $_GET['pdf'] == 1) {
     </script>
 </body>
 </html>
+<?php
+} catch (Throwable $e) {
+    error_log("Route Summary Fatal Error: " . $e->getMessage());
+    echo "<div style='padding: 20px; background: #fff0f0; border: 1px solid #ff0000; color: #cc0000; margin: 20px; border-radius: 8px;'>";
+    echo "<h3>System Error</h3>";
+    echo "<p>An error occurred while generating the route summary.</p>";
+    if (ini_get('display_errors')) {
+        echo "<hr><p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
+        echo "<p><strong>File:</strong> " . htmlspecialchars($e->getFile()) . " on line " . $e->getLine() . "</p>";
+        echo "<pre style='font-size: 11px;'>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+    }
+    echo "</div>";
+    echo "<script>console.error('Route Summary Fatal:', " . json_encode($e->getMessage()) . ");</script>";
+}
+?>
