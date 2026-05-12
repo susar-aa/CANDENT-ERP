@@ -59,8 +59,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_action'])) {
             $total_expenses = 0;
             foreach($expenses as $exp) { $total_expenses += $exp['amount']; }
 
-            // 4. Calculate Net Expected Cash Handover
-            $expected_cash = max(0, (float)$sales_summary['cash_sales'] - $total_expenses);
+            // 4. Fetch Credit Collections
+            $colStmt = $pdo->prepare("SELECT method, SUM(amount) as total FROM customer_payments WHERE assignment_id = ? GROUP BY method");
+            $colStmt->execute([$assignment_id]);
+            $collections = $colStmt->fetchAll();
+            $credit_cash_collected = 0;
+            $credit_cheque_collected = 0;
+            foreach($collections as $col) {
+                if ($col['method'] == 'Cash') $credit_cash_collected = (float)$col['total'];
+                if ($col['method'] == 'Cheque') $credit_cheque_collected = (float)$col['total'];
+            }
+
+            // 4.1 Calculate Net Expected Cash Handover
+            $expected_cash = max(0, (float)$sales_summary['cash_sales'] + $credit_cash_collected - $total_expenses);
             $expected_bank = (float)$sales_summary['bank_sales'];
 
             // 5. Fetch Received Cheques
@@ -89,6 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ajax_action'])) {
                 'sales_summary' => $sales_summary,
                 'expenses' => $expenses,
                 'total_expenses' => $total_expenses,
+                'credit_cash' => $credit_cash_collected,
+                'credit_cheque' => $credit_cheque_collected,
                 'expected_cash' => $expected_cash,
                 'expected_bank' => $expected_bank,
                 'rep_declared_cash' => $asg['rep_declared_cash'],
@@ -775,6 +788,17 @@ include '../includes/sidebar.php';
                                         <div style="font-size: 0.85rem; font-weight: 700; color: #CC2200;" id="unload_credit_sales">0.00</div>
                                     </div>
                                 </div>
+
+                                <div class="row g-2 text-center" style="border-top: 1px solid var(--ios-separator); padding-top: 12px; margin-top: 12px;">
+                                    <div class="col-6">
+                                        <div style="font-size: 0.7rem; color: var(--ios-label-2); font-weight: 600;">Credit Cash Collected</div>
+                                        <div style="font-size: 0.85rem; font-weight: 700; color: #34C759;" id="unload_credit_cash">0.00</div>
+                                    </div>
+                                    <div class="col-6" style="border-left: 1px solid var(--ios-separator);">
+                                        <div style="font-size: 0.7rem; color: var(--ios-label-2); font-weight: 600;">Credit Cheques Collected</div>
+                                        <div style="font-size: 0.85rem; font-weight: 700; color: #C07000;" id="unload_credit_cheque">0.00</div>
+                                    </div>
+                                </div>
                                 
                                 <div id="unload_expenses_container" class="mt-3 pt-3 d-none" style="border-top: 1px dashed var(--ios-separator);">
                                     <h6 class="fw-bold mb-2" style="font-size: 0.85rem; color: #CC2200;"><i class="bi bi-wallet2 me-1"></i>Recorded Route Expenses</h6>
@@ -1187,6 +1211,8 @@ function openUnloadModal(assignmentId) {
             document.getElementById('unload_bank_sales').innerText = parseFloat(result.sales_summary.bank_sales || 0).toFixed(2);
             document.getElementById('unload_cheque_sales').innerText = parseFloat(result.sales_summary.cheque_sales || 0).toFixed(2);
             document.getElementById('unload_credit_sales').innerText = parseFloat(result.sales_summary.credit_sales || 0).toFixed(2);
+            document.getElementById('unload_credit_cash').innerText = parseFloat(result.credit_cash || 0).toFixed(2);
+            document.getElementById('unload_credit_cheque').innerText = parseFloat(result.credit_cheque || 0).toFixed(2);
 
             // 3. Expenses Data
             if (result.expenses && result.expenses.length > 0) {

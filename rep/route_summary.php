@@ -113,6 +113,18 @@ $itemsStmt = $pdo->prepare("
 $itemsStmt->execute([$assignment_id]);
 $products_sold = $itemsStmt->fetchAll();
 
+// 6. Fetch Credit Collections
+$collectionStmt = $pdo->prepare("SELECT method, SUM(amount) as total FROM customer_payments WHERE assignment_id = ? GROUP BY method");
+$collectionStmt->execute([$assignment_id]);
+$collections = $collectionStmt->fetchAll();
+
+$credit_collected_cash = 0;
+$credit_collected_cheque = 0;
+foreach($collections as $col) {
+    if ($col['method'] == 'Cash') $credit_collected_cash = (float)$col['total'];
+    if ($col['method'] == 'Cheque') $credit_collected_cheque = (float)$col['total'];
+}
+
 
 // ============================================================================
 // SERVER-SIDE PDF GENERATION (Triggered via AJAX/Fetch)
@@ -133,6 +145,8 @@ if (isset($_GET['pdf']) && $_GET['pdf'] == 1) {
     $f_total = number_format($total_sale, 2);
     $f_month = number_format($month_up_to_yesterday, 2);
     $f_cumu = number_format($cumulative_sale, 2);
+    $f_col_cash = number_format($credit_collected_cash, 2);
+    $f_col_cheque = number_format($credit_collected_cheque, 2);
 
     // Build product list HTML for the PDF table
     $products_html = '';
@@ -221,8 +235,11 @@ if (isset($_GET['pdf']) && $_GET['pdf'] == 1) {
                     </table>
                 </td>
                 <td class='card'>
-                    <div class='title'>Monthly Performance</div>
+                    <div class='title'>Collections & Monthly</div>
                     <table class='info-table'>
+                        <tr><td>Credit Collected (Cash)</td><td class='val money text-success'>Rs {$f_col_cash}</td></tr>
+                        <tr><td>Credit Collected (Cheque)</td><td class='val money text-success'>Rs {$f_col_cheque}</td></tr>
+                        <tr><td colspan="2" style="border-top: 1px dashed #E2E8F0;"></td></tr>
                         <tr><td>Month Up to Yesterday</td><td class='val money'>Rs {$f_month}</td></tr>
                         <tr class='total-row total-cumu'><td>CUMULATIVE SALE</td><td class='val money'>Rs {$f_cumu}</td></tr>
                     </table>
@@ -501,7 +518,16 @@ if (isset($_GET['pdf']) && $_GET['pdf'] == 1) {
             </div>
 
             <div class="summary-card">
-                <div class="summary-title"><i class="bi bi-graph-up-arrow"></i> Monthly Performance</div>
+                <div class="summary-title"><i class="bi bi-graph-up-arrow"></i> Collections & Monthly</div>
+                <div class="info-row">
+                    <span class="info-label">Credit Collected (Cash)</span>
+                    <span class="info-value money text-success">Rs <?php echo number_format($credit_collected_cash, 2); ?></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Credit Collected (Cheque)</span>
+                    <span class="info-value money text-success">Rs <?php echo number_format($credit_collected_cheque, 2); ?></span>
+                </div>
+                <div style="height: 12px; border-bottom: 1px dashed var(--border); margin-bottom: 12px;"></div>
                 <div class="info-row">
                     <span class="info-label">Month Up to Yesterday</span>
                     <span class="info-value money">Rs <?php echo number_format($month_up_to_yesterday, 2); ?></span>
