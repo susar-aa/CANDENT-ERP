@@ -249,6 +249,7 @@ try {
         FOREIGN KEY (assignment_id) REFERENCES rep_routes(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
+    $pdo->exec("ALTER TABLE customer_payments ADD COLUMN assignment_id INT NULL AFTER customer_id");
 } catch(PDOException $e) {}
 
 try {

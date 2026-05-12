@@ -15,6 +15,13 @@ if (!$assignment_id) {
     die("Invalid Assignment ID.");
 }
 
+// Ensure database schema is up-to-date
+try {
+    $pdo->exec("ALTER TABLE customer_payments ADD COLUMN assignment_id INT NULL AFTER customer_id");
+} catch(PDOException $e) {
+    // Column likely already exists
+}
+
 // 1. Fetch Route, Rep, and Driver Info
 $routeStmt = $pdo->prepare("
     SELECT rr.*, r.name as route_name, e.name as driver_name, u.name as rep_name
@@ -113,16 +120,21 @@ $itemsStmt = $pdo->prepare("
 $itemsStmt->execute([$assignment_id]);
 $products_sold = $itemsStmt->fetchAll();
 
-// 6. Fetch Credit Collections
-$collectionStmt = $pdo->prepare("SELECT method, SUM(amount) as total FROM customer_payments WHERE assignment_id = ? GROUP BY method");
-$collectionStmt->execute([$assignment_id]);
-$collections = $collectionStmt->fetchAll();
-
 $credit_collected_cash = 0;
 $credit_collected_cheque = 0;
-foreach($collections as $col) {
-    if ($col['method'] == 'Cash') $credit_collected_cash = (float)$col['total'];
-    if ($col['method'] == 'Cheque') $credit_collected_cheque = (float)$col['total'];
+
+try {
+    // 6. Fetch Credit Collections
+    $collectionStmt = $pdo->prepare("SELECT method, SUM(amount) as total FROM customer_payments WHERE assignment_id = ? GROUP BY method");
+    $collectionStmt->execute([$assignment_id]);
+    $collections = $collectionStmt->fetchAll();
+
+    foreach($collections as $col) {
+        if ($col['method'] == 'Cash') $credit_collected_cash = (float)$col['total'];
+        if ($col['method'] == 'Cheque') $credit_collected_cheque = (float)$col['total'];
+    }
+} catch (Exception $e) {
+    // If table or column is missing, fail silently with 0 values
 }
 
 
