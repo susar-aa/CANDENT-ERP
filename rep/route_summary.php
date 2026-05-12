@@ -1,4 +1,4 @@
-<?php die("ANTIGRAVITY DEBUG: Script is running!");
+<?php
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -666,11 +666,9 @@ if (isset($_GET['pdf']) && $_GET['pdf'] == 1) {
     }
     </script>
 </body>
-    </script>
-</body>
 </html>
 <?php
-} catch (Throwable $e) {
+} catch (Exception $e) {
     echo "<div style='background:#fee; color:#c00; padding:20px; border:2px solid #c00; margin:20px; font-family:sans-serif; position:relative; z-index:9999;'>";
     echo "<h2>Internal Server Error (Antigravity Debugger)</h2>";
     echo "<p><strong>Error:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
