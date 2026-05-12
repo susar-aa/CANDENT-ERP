@@ -67,13 +67,41 @@ $routes = $pdo->query("SELECT id, name FROM routes ORDER BY name ASC")->fetchAll
     }
 
     .custom-customer-marker {
-        background: var(--ios-blue);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: transparent !important;
+        border: none !important;
+    }
+
+    .marker-dot {
         width: 12px;
         height: 12px;
         border-radius: 50%;
         border: 2px solid white;
-        box-shadow: 0 0 10px rgba(0,122,255,0.4);
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
     }
+
+    .marker-dot.blue { background-color: var(--ios-blue); box-shadow: 0 0 10px rgba(0,122,255,0.4); }
+    .marker-dot.red { background-color: #FF3B30; box-shadow: 0 0 10px rgba(255,59,48,0.4); }
+
+    .marker-label {
+        background: rgba(255,255,255,0.9);
+        backdrop-filter: blur(5px);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        white-space: nowrap;
+        margin-bottom: 4px;
+        color: #1c1c1e;
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        pointer-events: none;
+    }
+
+    .marker-label.red { color: #FF3B30; }
 
     .ios-select {
         border-radius: 10px;
@@ -112,9 +140,13 @@ $routes = $pdo->query("SELECT id, name FROM routes ORDER BY name ASC")->fetchAll
 <div class="page-header">
     <div>
         <h1 class="page-title">Customer Map</h1>
-        <p class="text-muted mb-0">Visualize your customer distribution across all routes.</p>
+        <p class="text-muted mb-0">Visualize your customer distribution and outstanding balances.</p>
     </div>
     <div class="d-flex gap-2">
+        <div class="d-flex align-items-center me-3 small fw-bold">
+            <span class="d-inline-block rounded-circle me-2" style="width:10px; height:10px; background:var(--ios-blue);"></span> Paid
+            <span class="d-inline-block rounded-circle ms-3 me-2" style="width:10px; height:10px; background:#FF3B30;"></span> Outstanding
+        </div>
         <button onclick="loadCustomers()" class="btn btn-light rounded-pill px-4 fw-bold shadow-sm">
             <i class="bi bi-arrow-clockwise me-2"></i>Refresh
         </button>
@@ -184,19 +216,28 @@ async function loadCustomers() {
 
             customers.forEach(customer => {
                 if (customer.latitude && customer.longitude) {
-                    const marker = L.circleMarker([customer.latitude, customer.longitude], {
-                        radius: 8,
-                        fillColor: "#007AFF",
-                        color: "#fff",
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 0.8
+                    const hasOutstanding = parseFloat(customer.outstanding) > 0;
+                    const colorClass = hasOutstanding ? 'red' : 'blue';
+                    
+                    const customIcon = L.divIcon({
+                        className: 'custom-customer-marker',
+                        html: `
+                            <div class="marker-label ${colorClass}">${customer.name}</div>
+                            <div class="marker-dot ${colorClass}"></div>
+                        `,
+                        iconSize: [100, 40],
+                        iconAnchor: [50, 40]
                     });
+
+                    const marker = L.marker([customer.latitude, customer.longitude], { icon: customIcon });
 
                     const popupContent = `
                         <div class="marker-popup">
                             <h6>${customer.name}</h6>
                             <p><i class="bi bi-geo-alt-fill me-1"></i>${customer.address || 'No address provided'}</p>
+                            <p class="mt-1 fw-bold ${hasOutstanding ? 'text-danger' : 'text-success'}">
+                                <i class="bi bi-wallet2 me-1"></i>Outstanding: Rs ${parseFloat(customer.outstanding).toLocaleString()}
+                            </p>
                             <a href="customers.php?id=${customer.id}" class="btn btn-primary btn-sm w-100 mt-2 rounded-pill" style="font-size:0.7rem; font-weight:700;">View Profile</a>
                         </div>
                     `;
@@ -208,7 +249,7 @@ async function loadCustomers() {
             });
 
             if (routeId != "0" && customers.length > 0) {
-                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+                map.fitBounds(bounds, { padding: [100, 100], maxZoom: 16 });
             }
         }
     } catch (e) {

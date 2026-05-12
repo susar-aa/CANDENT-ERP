@@ -12,11 +12,23 @@ if (!hasRole(['admin', 'supervisor'])) {
 $route_id = isset($_GET['route_id']) ? (int)$_GET['route_id'] : 0;
 
 try {
-    $sql = "SELECT id, name, address, latitude, longitude, route_id FROM customers WHERE latitude IS NOT NULL AND longitude IS NOT NULL";
+    // Outstanding calculation logic consistent with aging reports and rep dashboard
+    $sql = "
+        SELECT 
+            c.id, 
+            c.name, 
+            c.address, 
+            c.latitude, 
+            c.longitude, 
+            c.route_id,
+            COALESCE((SELECT SUM(total_amount - paid_amount) FROM orders WHERE customer_id = c.id AND order_status != 'cancelled'), 0) as outstanding
+        FROM customers c 
+        WHERE c.latitude IS NOT NULL AND c.longitude IS NOT NULL
+    ";
     $params = [];
 
     if ($route_id > 0) {
-        $sql .= " AND route_id = ?";
+        $sql .= " AND c.route_id = ?";
         $params[] = $route_id;
     }
 
